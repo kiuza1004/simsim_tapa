@@ -4,6 +4,7 @@ const SIZE = 15
 type Stone = 'B' | 'W' | null
 type Board = Stone[][]
 type Mode = 'pvp' | 'pvai-black' | 'pvai-white'
+type Difficulty = 'easy' | 'medium' | 'hard'
 
 const DIRS: [number, number][] = [
   [0, 1],
@@ -135,6 +136,159 @@ function findAIMove(
   return bestMove
 }
 
+function evaluatePosition(b: Board, ai: 'B' | 'W'): number {
+  const opp: 'B' | 'W' = ai === 'B' ? 'W' : 'B'
+  let aiSum = 0
+  let oppSum = 0
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      const s = b[r][c]
+      if (!s) continue
+      for (const [dr, dc] of DIRS) {
+        const pr = r - dr
+        const pc = c - dc
+        if (inBounds(pr, pc) && b[pr][pc] === s) continue
+
+        let len = 0
+        let i = r
+        let j = c
+        while (inBounds(i, j) && b[i][j] === s) {
+          len++
+          i += dr
+          j += dc
+        }
+
+        const opens =
+          (inBounds(pr, pc) && b[pr][pc] === null ? 1 : 0) +
+          (inBounds(i, j) && b[i][j] === null ? 1 : 0)
+        const score = patternScore(len, opens)
+        if (s === ai) aiSum += score
+        else if (s === opp) oppSum += score
+      }
+    }
+  }
+
+  return aiSum - oppSum
+}
+
+function topCandidates(
+  b: Board,
+  toMove: 'B' | 'W',
+  limit: number
+): [number, number][] {
+  const opp: 'B' | 'W' = toMove === 'B' ? 'W' : 'B'
+  return getCandidates(b)
+    .map(([r, c]) => ({
+      m: [r, c] as [number, number],
+      s: scoreMove(b, r, c, toMove) + scoreMove(b, r, c, opp) * 0.9,
+    }))
+    .sort((a, z) => z.s - a.s)
+    .slice(0, limit)
+    .map((x) => x.m)
+}
+
+const WIN_SCORE = 1_000_000
+
+function alphaBeta(
+  b: Board,
+  depth: number,
+  alpha: number,
+  beta: number,
+  ai: 'B' | 'W',
+  toMove: 'B' | 'W',
+  overlineForbidden: boolean
+): number {
+  if (depth === 0) return evaluatePosition(b, ai)
+
+  const maximizing = toMove === ai
+  const opp: 'B' | 'W' = toMove === 'B' ? 'W' : 'B'
+  const candidates = topCandidates(b, toMove, 10)
+
+  let value = maximizing ? -Infinity : Infinity
+
+  for (const [r, c] of candidates) {
+    b[r][c] = toMove
+
+    if (toMove === 'B' && overlineForbidden && maxLine(b, r, c, 'B') >= 6) {
+      b[r][c] = null
+      continue
+    }
+
+    if (maxLine(b, r, c, toMove) >= 5) {
+      b[r][c] = null
+      return maximizing ? WIN_SCORE + depth : -WIN_SCORE - depth
+    }
+
+    const next = alphaBeta(b, depth - 1, alpha, beta, ai, opp, overlineForbidden)
+    b[r][c] = null
+
+    if (maximizing) {
+      if (next > value) value = next
+      if (value > alpha) alpha = value
+    } else {
+      if (next < value) value = next
+      if (value < beta) beta = value
+    }
+    if (alpha >= beta) break
+  }
+
+  return value === -Infinity || value === Infinity
+    ? evaluatePosition(b, ai)
+    : value
+}
+
+function findBestMoveAB(
+  b: Board,
+  ai: 'B' | 'W',
+  depth: number,
+  overlineForbidden: boolean
+): [number, number] | null {
+  const working = cloneBoard(b)
+  const opp: 'B' | 'W' = ai === 'B' ? 'W' : 'B'
+  const candidates = topCandidates(working, ai, 15)
+  if (candidates.length === 0) return null
+
+  let bestValue = -Infinity
+  let bestMove: [number, number] | null = null
+  let alpha = -Infinity
+  const beta = Infinity
+
+  for (const [r, c] of candidates) {
+    working[r][c] = ai
+
+    if (ai === 'B' && overlineForbidden && maxLine(working, r, c, 'B') >= 6) {
+      working[r][c] = null
+      continue
+    }
+
+    let value: number
+    if (maxLine(working, r, c, ai) >= 5) {
+      value = WIN_SCORE + depth
+    } else {
+      value = alphaBeta(
+        working,
+        depth - 1,
+        alpha,
+        beta,
+        ai,
+        opp,
+        overlineForbidden
+      )
+    }
+
+    working[r][c] = null
+
+    if (value > bestValue) {
+      bestValue = value
+      bestMove = [r, c]
+    }
+    if (value > alpha) alpha = value
+  }
+
+  return bestMove
+}
+
 type Snapshot = {
   board: Board
   turn: 'B' | 'W'
@@ -152,6 +306,7 @@ export default function Omok() {
   const [history, setHistory] = useState<Snapshot[]>([])
   const [mode, setMode] = useState<Mode>('pvp')
   const [overline, setOverline] = useState(true)
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium')
   const [notice, setNotice] = useState<string | null>(null)
 
   const aiColor: 'B' | 'W' | null =
@@ -231,12 +386,20 @@ export default function Omok() {
     if (turn !== aiColor) return
 
     const id = window.setTimeout(() => {
-      const move = findAIMove(board, aiColor, overline)
+      const move =
+        difficulty === 'easy'
+          ? findAIMove(board, aiColor, overline)
+          : findBestMoveAB(
+              board,
+              aiColor,
+              difficulty === 'medium' ? 2 : 4,
+              overline
+            )
       if (move) place(move[0], move[1])
-    }, 400)
+    }, 250)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turn, aiColor, winner, board, overline])
+  }, [turn, aiColor, winner, board, overline, difficulty])
 
   const modeButton = (m: Mode, label: string) => (
     <button
@@ -263,6 +426,25 @@ export default function Omok() {
         {modeButton('pvai-black', 'vs AI · 내가 흑')}
         {modeButton('pvai-white', 'vs AI · 내가 백')}
       </div>
+
+      {aiColor && (
+        <div className="flex items-center gap-2 mb-3 text-xs">
+          <span className="text-zinc-400">AI 난이도</span>
+          {(['easy', 'medium', 'hard'] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDifficulty(d)}
+              className={`px-2.5 py-1 rounded-full font-bold transition ${
+                difficulty === d
+                  ? 'bg-violet-500 text-white'
+                  : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+              }`}
+            >
+              {d === 'easy' ? '쉬움' : d === 'medium' ? '보통 (α-β d2)' : '어려움 (α-β d4)'}
+            </button>
+          ))}
+        </div>
+      )}
 
       <label className="text-xs text-zinc-400 flex items-center gap-2 mb-4 cursor-pointer select-none">
         <input
