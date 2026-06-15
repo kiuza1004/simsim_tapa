@@ -33,7 +33,7 @@ const games = [
     to: '/games/omok',
     emoji: '⚫',
     title: '오목',
-    desc: '15×15 보드, 5개 먼저 잇기 (2인)',
+    desc: 'AI 대전 · 무르기 · 장목 금지',
     color: 'border-amber-400/30 hover:border-amber-400',
   },
 ]
