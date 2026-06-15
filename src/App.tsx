@@ -6,6 +6,7 @@ import TicTacToe from './pages/games/TicTacToe'
 import MemoryMatch from './pages/games/MemoryMatch'
 import ReactionTest from './pages/games/ReactionTest'
 import WhackAMole from './pages/games/WhackAMole'
+import Omok from './pages/games/Omok'
 
 function Header() {
   const { pathname } = useLocation()
@@ -40,6 +41,7 @@ function App() {
           <Route path="/games/memory" element={<MemoryMatch />} />
           <Route path="/games/reaction" element={<ReactionTest />} />
           <Route path="/games/whack" element={<WhackAMole />} />
+          <Route path="/games/omok" element={<Omok />} />
         </Routes>
       </main>
       <footer className="text-center text-xs text-zinc-500 py-6">

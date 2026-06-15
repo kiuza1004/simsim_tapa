@@ -29,6 +29,13 @@ const games = [
     desc: '30초 안에 두더지 최대한 잡기',
     color: 'border-rose-400/30 hover:border-rose-400',
   },
+  {
+    to: '/games/omok',
+    emoji: '⚫',
+    title: '오목',
+    desc: '15×15 보드, 5개 먼저 잇기 (2인)',
+    color: 'border-amber-400/30 hover:border-amber-400',
+  },
 ]
 
 export default function Games() {
@@ -36,7 +43,7 @@ export default function Games() {
     <div className="flex flex-col items-center">
       <h1 className="text-3xl font-bold mb-2">🎮 미니게임 모음</h1>
       <p className="text-zinc-400 mb-8">짧고 가벼운 게임으로 시간 보내기</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
         {games.map((g) => (
           <Link
             key={g.to}
