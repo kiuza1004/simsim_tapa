@@ -22,6 +22,13 @@ const games = [
     desc: '초록불 켜지면 빨리 클릭',
     color: 'border-emerald-400/30 hover:border-emerald-400',
   },
+  {
+    to: '/games/whack',
+    emoji: '🔨',
+    title: '두더지 잡기',
+    desc: '30초 안에 두더지 최대한 잡기',
+    color: 'border-rose-400/30 hover:border-rose-400',
+  },
 ]
 
 export default function Games() {
@@ -29,7 +36,7 @@ export default function Games() {
     <div className="flex flex-col items-center">
       <h1 className="text-3xl font-bold mb-2">🎮 미니게임 모음</h1>
       <p className="text-zinc-400 mb-8">짧고 가벼운 게임으로 시간 보내기</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
         {games.map((g) => (
           <Link
             key={g.to}
